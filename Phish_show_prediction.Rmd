@@ -1,0 +1,154 @@
+---
+title: "Phish Show Prediction"
+output: html_notebook
+---
+
+Let's use our powers for good rather than corporate evil and attempt to make a prediction about the future set-lists of the Phish summer tour.
+
+The initial idea is kind of simple, produce a naive prediction for the first show of the season. 
+
+```{r}
+library(tidyverse)
+library(skimr)
+library(lubridate)
+
+df <- read_csv("phish_data_2009-2017.csv")
+
+glimpse(df)
+```
+
+# Naive Prediction
+
+To make a naive prediction, we could simply use the following to generate a distribution. 
+
+```{r}
+outlying <- df %>% 
+  group_by(show_date) %>% 
+  count(sort = TRUE) %>% 
+  filter(n <= 12) %>% 
+  select(show_date) %>% 
+  as_vector()
+
+df <- df %>% 
+  mutate(month = month(show_date)) %>% 
+  filter(month %in% c(5,6,7,8,9)) %>% 
+  filter(!show_date %in% outlying)
+```
+
+
+
+```{r}
+df %>% 
+  count(title, sort = TRUE) %>% 
+  mutate(perc = n / sum(n))
+```
+
+
+```{r}
+df %>% 
+  count(title, sort = TRUE) %>% 
+  ggplot(aes(x = n)) + geom_density()
+```
+
+
+
+```{r}
+df %>% 
+  group_by(show_date) %>% 
+  count(sort = TRUE) 
+```
+
+
+```{r}
+df %>% 
+  filter(show_date == '2011-06-30')
+```
+
+
+```{r}
+df %>% 
+  group_by(show_date) %>% 
+  count() %>%
+  ungroup() %>% 
+  skim(n)
+```
+
+```{r}
+df %>% 
+  group_by(show_date) %>% 
+  count() %>% 
+  ungroup() %>% 
+  summarise(med_songs = median(n), mad_songs = mad(n))
+```
+
+
+```{r}
+df %>% 
+  group_by(show_date) %>% 
+  count() %>% 
+  ungroup() %>% 
+  ggplot(aes(x = n)) + geom_density()
+```
+
+So given this, the prediction is likely 21 +/- 3 songs will be played at any show. But which songs. The naive prediction simply asks us to take the most frequent songs into consideration.
+
+```{r}
+df %>% 
+  count(title, sort = TRUE) %>% 
+  top_n(24)
+```
+
+Of course such a prediction doesn't really make sense, as it uses nothing but frequency. We have more information than that.
+
+## Aside 1: Predict first set opener
+Let's add that track number
+```{r}
+df <- df %>% 
+  group_by(show_date, set) %>% 
+  mutate(n = 1:n())
+
+df
+```
+
+
+```{r}
+dfc <- df %>% 
+  filter(set == 'Set 1') %>% 
+  mutate(opener = if_else(n == 1, 1, 0))
+dfc
+```
+
+```{r}
+dfc %>% 
+  ungroup() %>% 
+  filter(opener == 1) %>% 
+  count(title, sort = TRUE) %>% 
+  mutate(perc = nn/n()) %>% 
+  identity() #%>% 
+  #ggplot(aes(x=nn)) + geom_histogram()
+```
+
+```{r}
+dff <- dfc %>% 
+  ungroup() %>% 
+  filter(opener == 1) %>% 
+  filter(title != 'Chalk Dust Torture' & title != "Wolfman's Brother") %>% 
+  count(title, sort = TRUE) %>% 
+  mutate(perc = nn/n()) %>% 
+  identity()
+dff
+```
+
+```{r}
+dff %>% 
+  filter(nn == 1) %>% 
+  count()
+```
+
+so 55/99 is the lower prediction bound. You basically cannot do any worse than this. 
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
